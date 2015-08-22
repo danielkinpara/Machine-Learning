@@ -1,0 +1,131 @@
+#Course Project: Practical Machine Learning
+#Human Activity Recognition
+
+---
+
+####Author: Daniel Kinpara
+####Date: August, 2015
+
+---
+
+###1. Introduction
+The goal of this project is to predict the quality of execution of a weight lifting exercise. In order to do that, data from four accelerometers installed in a belt, forearm (glove), arm, and dumbbell of six individuals were used to build the training dataset. They were asked to perform 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different ways:
+
+* Class A: correct;
+* Class B: wrong -- throwing the elbows to the front;
+* Class C: wrong -- lifting the dumbbell only halfway;
+* Class D: wrong -- lowering the dumbbell only halfway;
+* Class E: wrong -- throwing the hips to the front.
+
+The dataset used to train the model can be [download here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv). The original data source is from [Velloso et al. (2013)](http://groupware.les.inf.puc-rio.br/public/papers/2013.Velloso.QAR-WLE.pdf).
+
+The packages used for this study are listed below:
+```{r, warning = FALSE}
+library(AppliedPredictiveModeling)
+library(lattice)
+library(ggplot2)
+library(caret)
+library(e1071)
+library(randomForest)
+```
+
+---
+
+###2. The dataset
+The original dataset has 160 variables and 19,622 observations. It has five major groups of variables: 1) bookkeeping; 2) arm sensor; 3) forearm sensor; 4) belt sensor; and 5) dumbbell sensor. Velloso et al. (2013) used the Euler angles of each of the four sensors to calculate eight features: mean, variance, standard deviation, max, min, amplitude, kurtosis, and skewness. Most of the features' data are "NA".
+
+The outcome variable is the variable **classe**, with five levels (A to E). In order to find the model that best predict the five classes, only the sensor readings were used. Each sensor have 13 different measurements, as follow: gyroscope 3-axis, accelerometer 3-axis, magnetometer 3-axis, total acceleration, roll, pitch, and yaw. The variable **num_window** gives the time frame of the readings. So, the total number of variables is 54. The variable list below was the dataset used for the present study.
+
+```{r, echo = TRUE, cache = TRUE}
+
+setwd("~/Documents/")                                           # The directory
+                                                                # of the file.
+dados <- read.csv("pml-training.csv",
+                header = TRUE, sep = ",", dec = ".",
+                na.strings = c("NA", ""))                       # Blank spaces
+                                                                # are also NA.
+
+dados <- dados[ ,7:160]                                         # Bookkeeping
+                                                                # variables are
+                                                                # trimmed.
+colunasNA <- apply(!is.na(dados), 2, sum)                       # Sums the # of
+                                                                # NA in each
+                                                                # column.
+semNA <- colunasNA == 19622                                     # Tests when                                                                    # whole column
+                                                                # is of NA.
+dados <- dados[ ,semNA]                                         # Removes the
+                                                                # NA columns.
+```
+
+The final dataset structure is:
+```{r, echo = FALSE}
+str(dados)
+```
+
+In order to best determine the model accuracy, the training dataset was splitted in two groups, the training group (*dadosTreino*) and the test group (*dadosTeste*). The proportion is 70% for training and 30% for testing.
+
+```{r, echo = TRUE}
+divisao <- createDataPartition(y = dados$classe, p = 0.7, list=FALSE)
+dadosTreino <- dados[divisao, ]
+dadosTeste <- dados[-divisao, ]
+```
+
+* *dadosTreino* dimension (obs, var): **`r dim(dadosTreino)`**.
+* *dadosTeste* dimension (obs, var): **`r dim(dadosTeste)`**.
+
+---
+
+###3. The model
+Velloso et al. (2013) mentioned in their paper that they used Random Forest (RF) method as the first approach to determine the performance recognition model. They justify the use of RF method due to the usual noise present in the sensor readings.
+Kelly (2014) explains that RF is an improvement over bagged trees (bootstraping resampling). In the bootstrap process, the strongest predictor is used in the first split, what makes the trees to be quite similar. The result is some very correlated trees, "hiding" the variance in the dataset (keeps it high). RF makes each split to consider only a subset of the predictors. So, part of the splits will not even consider the strongest predictor.
+
+In the present study, a RF method was used to train a prediction model. The model obtained was tested with a non-exhaustive 10-fold cross-validation resampling, as Velloso et al. (2013) have done.
+
+```{r, echo = TRUE, cache = TRUE}
+set.seed(2015)
+modeloRF <- train(classe ~ .,data = dadosTreino, method = "rf",
+                  trControl = trainControl(method = "cv", number = 10))
+```
+
+The best trained model obtained used 27 predictors, giving an accuracy of 99.67%.
+```{r, echo = FALSE}
+print(modeloRF)
+```
+
+The final model variables are presented below. It was used the Gini index to order the variables importance in the final model.
+
+```{r, echo = FALSE, fig.height = 7}
+varImpPlot(modeloRF$finalModel, sort = TRUE, main = "Classifier final variables")
+```
+
+As mentioned before, Velloso et al. (2013) used eight calculated features to built their model. To select the features, they used Hall (1999) algorithm based on correlation configured to use “Best First” strategy for backtracking. The selected 17 features were:
+
+* Belt sensor: mean and variance of the roll, maximum, range and variance of the accelerometer vector, variance of the gyro, and variance of the magnetometer;
+* Arm sensor: variance of the accelerometer vector and the maximum and minimum of the magnetometer;
+* Dumbbell sensor: maximum of the acceleration, variance of the gyro, and maximum and minimum of the magnetometer;
+* Glove sensor: sum of the pitch and the maximum and minimum of the gyro.
+
+---
+
+###4. Error Estimates
+The error can be estimated through an out-of-bag sampling process (OOB). The result obtained by the trained model was 0.24%. As the confusion matrix shows, most of the classification errors happens in the classes **B** and **D**. They are wrong exercises movements, when the subject throws the elbows to the front and when lowers the dumbbell only halfway, respectively. In the **D** case, given that "half" can be very subjective, that may explain why is difficult to classify these mistaken movements.
+
+```{r, echo = FALSE}
+print(modeloRF$finalModel)
+```
+
+A better way to access the model performace can be achieved using the test group. The classifier is used to predict the classes using a new dataset. A new confusion matrix was built. The results show that classes **B** and **C** are the ones with more misclassification. However, the accuracy obtained was better than the cross-validation resampling one. The model performed better with the test dataset than the training dataset, scoring 99.8%, significant at a 95% confidence interval. The sensitivity and specificity statisticts were remarkable. The model performed above 99.4% in overall. For true positives, the model classified 100% of **B** class. For true negatives, it classified 100% of **A** and **E** classes.
+
+```{r, echo = FALSE}
+predito <- predict(modeloRF, newdata = dadosTeste)
+confusionMatrix(predito, dadosTeste$classe)
+```
+
+---
+
+###6. Cited Literature
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. *Qualitative Activity Recognition of Weight Lifting Exercises*. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Hall, M. A. *Correlation-based Feature Subset Selection for Machine Learning*. PhD thesis, Department of Computer Science, University of Waikato, Hamilton, New Zealand, Apr. 1999.
+
+Kelly, R. *Bagging, Random Forests, Boosting*. [accessed 2014 August 21]. http://www.rmdk.ca/boosting_forests_bagging.html
