@@ -34,7 +34,7 @@ library(randomForest)
 ###2. The dataset
 The original dataset has 160 variables and 19,622 observations. It has five major groups of variables: 1) bookkeeping; 2) arm sensor; 3) forearm sensor; 4) belt sensor; and 5) dumbbell sensor. Velloso et al. (2013) used the Euler angles of each of the four sensors to calculate eight features: mean, variance, standard deviation, max, min, amplitude, kurtosis, and skewness. Most of the features' data are "NA".
 
-The outcome variable is the variable **classe**, with five levels (A to E). In order to find the model that best predict the five classes, only the sensor readings were used. Each sensor have 13 different measurements, as follow: gyroscope 3-axis, accelerometer 3-axis, magnetometer 3-axis, total acceleration, roll, pitch, and yaw. The variable **num_window** gives the time frame of the readings. So, the total number of variables is 54. The variable list below was the dataset used for the present study.
+The outcome variable is the variable **classe**, with five levels (A to E). In order to find the model that best predict the five classes, only the sensor readings were used. Each sensor has 13 different measurements, as follow: gyroscope 3-axis, accelerometer 3-axis, magnetometer 3-axis, total acceleration, roll, pitch, and yaw. The variable **num_window** gives the time frame of the readings. So, the total number of variables is 54. The variable list below was the dataset used for the present study.
 
 ```{r, echo = TRUE, cache = TRUE}
 
@@ -51,7 +51,8 @@ dados <- dados[ ,7:160]                                         # Bookkeeping
 colunasNA <- apply(!is.na(dados), 2, sum)                       # Sums the # of
                                                                 # NA in each
                                                                 # column.
-semNA <- colunasNA == 19622                                     # Tests when                                                                    # whole column
+semNA <- colunasNA == 19622                                     # Tests when
+                                                                # whole column
                                                                 # is of NA.
 dados <- dados[ ,semNA]                                         # Removes the
                                                                 # NA columns.
